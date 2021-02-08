@@ -1,0 +1,410 @@
+---
+title: '**Linear models, functions, shortcuts**'
+author: "Kevin Aagaard"
+date: "November 16, 2015"
+output: pdf_document
+---
+
+```{r, echo=F}
+#require(data.table)
+#require(plyr)
+#require(...)
+
+x = c("data.table", "plyr", "readr", "readxl", "microbenchmark")
+lapply(x,require,character.only=T)
+```
+
+# **Linear Models**
+
+**The command**:
+
+`?lm()`
+ 
+>  lm is used to fit linear models. It can be used to carry out regression, single stratum analysis of variance and 
+analysis of covariance (although aov may provide a more 
+convenient interface for these).
+
+```{r} 
+#lm(formula, data, subset, weights, na.action, method = "qr", model = TRUE, x = FALSE, y = FALSE, qr = TRUE, singular.ok = TRUE, contrasts = NULL, offset, ...)
+```
+
+
+**formula**: an object of class "formula" (or one that can be 
+         coerced to that class): a symbolic description of 
+         the model to be fitted. The details of model 
+         specification are given under 'Details'.  
+**data**:    an optional data frame, list or environment (or 
+         object coercible by as.data.frame to a data frame) 
+         containing the variables in the model. If not found 
+         in data, the variables are taken from 
+         environment(formula), typically the environment from 
+         which lm is called.  
+**subset**:  an optional vector specifying a subset of 
+         observations to be used in the fitting process.  
+**weights**: an optional vector of weights to be used in the 
+         fitting process. Should be NULL or a numeric vector. 
+         If non-NULL, weighted least squares is used with 
+         weights weights (that is, minimizing sum(w*e^2)); 
+         otherwise ordinary least squares is used. See also 
+         'Details'.  
+**na.action**:  a function which indicates what should happen 
+            when the data contain NAs. The default is set by 
+            the na.action setting of options, and is na.fail 
+            if that is unset. The 'factory-fresh' default is 
+            na.omit. Another possible value is NULL, no 
+            action. Value na.exclude can be useful.  
+**method**:  the method to be used; for fitting, currently only 
+         method = "qr" is supported; method = "model.frame" 
+         returns the model frame (the same as with model = 
+         TRUE, see below).  
+**model, x, y, qr**:  logicals. If TRUE the corresponding 
+                  components of the fit (the model frame, 
+                  the model matrix, the response, the QR 
+                  decomposition) are returned.  
+**singular.ok**:   logical. If FALSE (the default in S but not 
+               in R) a singular fit is an error.  
+**contrasts**:   an optional list. See the contrasts.arg of 
+             model.matrix.default.  
+**offset**:   this can be used to specify an a priori known 
+          component to be included in the linear predictor 
+          during fitting. This should be NULL or a numeric 
+          vector of length equal to the number of cases. One 
+          or more offset terms can be included in the 
+          formula instead or as well, and if more than one 
+          are specified their sum is used. See model.offset.  
+**...**:      additional arguments to be passed to the low level 
+          regression fitting functions (see below).  
+
+## **Example**
+```{r}
+tree_data = read.table("Trees.txt", header=T, sep="\t")
+```
+*Formula (is DBH related to Species?)*: DBH ~ index(BOTANICAL)  
+*Data*: Trees  
+
+```{r}
+tree_data$species_id = id(tree_data["BOTANICAL"], drop=T)
+
+example_lm = lm(DBH ~ species_id, data=tree_data)
+
+#Output
+example_lm
+
+summary(example_lm)
+```
+
+### *Regression plot*  
+```{r}
+plot(x=tree_data$species_id,y=tree_data$DBH,type="p")
+abline(example_lm)
+abline(a=47.8526, b = 0.1987, col="red", lwd=5, lty=2)
+```
+
+### *QQ plots*
+
+```{r} 
+plot(example_lm)
+```
+
+1) Possible non-linear trend  
+2) Possibly non-normal (or, "non-Gaussian") residuals  
+3) Potential non-constant error variance)  
+4) Trend may be driven by a single point  
+
+***
+
+## **Multiple responses**  
+```{r}
+example_lm2 = lm(DBH ~ species_id+SITE, data=tree_data)
+
+#Output
+example_lm2
+
+summary(example_lm2)
+```
+
+### *QQ plots*
+
+```{r}
+plot(example_lm2)
+```
+
+1) Possible non-linear trend  
+2) Possibly non-normal (or, "non-Gaussian") residuals  
+3) Potential non-constant error variance)  
+4) Low leverage, high resisual  
+
+***
+
+# **Analysis of Variance**
+
+**The command**:
+
+`?aov()`
+
+> Fit an analysis of variance model by a call to lm for each stratum.
+
+```{r}
+#aov(formula, data = NULL, projections = FALSE, qr = TRUE, contrasts = NULL, ...)
+```
+
+**formula**:   A formula specifying the model.  
+**data**:      A data frame in which the variables specified in 
+           the formula will be found. If missing, the 
+           variables are searched for in the standard way.  
+**projections**:  Logical flag: should the projections be returned?  
+**qr**:           Logical flag: should the QR decomposition be 
+              returned?  
+**contrasts**:    A list of contrasts to be used for some of the 
+              factors in the formula. These are not used for 
+              any Error term, and supplying contrasts for 
+              factors only in the Error term will give a 
+              warning.  
+**...**:      Arguments to be passed to lm, such as subset or 
+          na.action. See 'Details' about weights.  
+
+*Formula (is DBH related to Species?)*: DBH ~ index(BOTANICAL)  
+*Data*: Trees  
+
+```{r,echo=F}
+example_aov = aov(example_lm)
+
+#Output
+example_aov
+
+summary(example_aov)
+```
+
+
+## **Multiple responses**  
+```{r,echo=F}
+example_aov2 = aov(example_lm2)
+
+#Output
+example_aov2
+
+summary(example_aov2)
+```
+
+***
+
+# **Functions**
+
+##  **Why use functions?**  
+
+### **For speed!**  
+
+*To time stuff*: proc.time()  
+
+```{r, echo=T, eval=F}
+test = rnorm(1000, 10, 1)
+
+z_test = vector()
+
+timer = proc.time()
+for(i in 1:length(test)) {
+  z_test[i] = (test[i] - mean(test)) / sd(test)
+}
+proc.time() - timer
+#> proc.time() - timer
+#user  system elapsed 
+#81.78    4.81   88.08 
+
+zscore.func = function(x) (x - mean(x))/sd(x)
+timer = proc.time()
+z_test_fun = zscore.func(test)
+proc.time() - timer
+#> proc.time() - timer
+#user  system elapsed 
+#0.0     0.0     0.9 
+```
+
+
+### **For flexibility! (Not everything has been made for R...)**
+```{r}
+bird_data = read.table("Waterfowl.txt", header=T, sep="\t")
+
+bird_data$Observed_Date = as.Date(bird_data$Observed_Date,
+                                  "%m/%d/%Y")
+
+#Bird-use-days function
+BUDS = function(x, day) {
+  birdusedays = array(NA, dim=c(dim(x)[1],dim(x)[2]))
+  for (j in 1:dim(x)[1]) {
+    for (k in 2:dim(x)[2]) {
+      birdusedays[j,k] = (day[k]-day[k-1])*((x[j,k]+x[j,k-1])/2)
+    } # k
+  } # j
+  results = rowSums(birdusedays, na.rm=TRUE)
+  return(round(results))
+}
+
+bird_data_bud = 
+  dcast.data.table(data.table(bird_data),
+                   Waterbody_ID~Observed_Date, fun.aggregate=sum,
+                   fill=0, value.var="Observed")
+
+bird_data_days = 
+  as.numeric(round(difftime(colnames(bird_data_bud)[-1],
+                            min(colnames(bird_data_bud)[-1]), 
+                            units="days"))) + 1
+
+waterfowl_buds = BUDS(data.frame(bird_data_bud)[,-1], 
+                      bird_data_days)
+
+waterfowl_buds = data.table(waterfowl_buds)
+waterfowl_buds
+```
+
+***
+
+# **Shortcuts**
+
+## **Loading multiple libraries at once**  
+
+```{r}
+#require(data.table)
+#require(plyr)
+#require(...)
+
+x = c("data.table", "plyr", "readr", "readxl", "microbenchmark")
+lapply(x,require,character.only=T)
+```
+
+
+## **Reading in large data files**
+```{r, echo=T, eval=F}
+data_test1 = read.csv("big_Trees.csv")
+data_test2 = read_delim("big_Trees.csv", delim=",")
+data_test3 = read_excel("big_Trees.xlsx")
+```
+```{r}
+timer = proc.time()
+data_test1 = read.csv("big_Trees.csv")
+proc.time() - timer
+
+timer = proc.time()
+data_test2 = read_delim("big_Trees.csv", delim=",")
+proc.time() - timer
+
+timer = proc.time()
+data_test3 = read_excel("big_Trees.xlsx")
+proc.time() - timer
+```
+
+
+## **For loops, Vectorization, Functions**
+```{r}
+test = rnorm(1000000, 10, 1)
+
+add_test = vector()
+
+#timer = proc.time()
+#for(i in 1:length(test)) {
+#  add_test[i] = test[i] + 1
+#}
+#proc.time() - timer
+#> proc.time() - timer
+#user  system elapsed 
+#1837.85  494.32 2394.03 <- 39 minutes!
+
+add.func = function(x) x+1
+timer = proc.time()
+add_test_fun = add.func(test)
+proc.time() - timer
+
+timer = proc.time()
+add_test_vector = test + 1
+proc.time() - timer
+```
+
+
+## **Dynamically saving tables and graphs**
+```{r}
+#for(
+#  i in 1:#NUMBER OF FILES TO SAVE
+#    ) 
+#  {
+#  filename = paste(names(
+#    #R OBJECTS TO SAVE
+#    )[i], 
+#    #" SOME EXTRA DESCRIPTOR OF EACH FILE", 
+#    ".jpeg", sep="")
+#  save_files_to = file.path(paste(getwd()), filename)
+#  
+#  jpeg(file = 
+#        #R OBJECT
+#        , width = 960, height = 480)
+#  
+#  plot(
+#    #R OBJECT
+#    [[i]], main = names(
+#      #R OBJECT
+#      )[i])
+#  
+#  dev.off()
+#}
+```
+
+
+## **Easier subsetting with data.tables**
+```{r}
+subset_example = read_csv("Trees.csv")
+subset_example_sites = subset_example[subset_example$SITE==1,]
+
+#AND
+subset_example_large = 
+  subset_example[subset_example$SITE==1 &
+                   subset_example$DBH>=50,]
+subset_example_large
+
+#OR
+subset_example_species = 
+  subset_example[subset_example$BOTANICAL=="Quercus alba" | 
+                   subset_example$BOTANICAL=="Acer saccharinum",]
+subset_example_species
+
+#%in%
+
+"stump" %in% subset_example$"COMMON NAME"
+```
+
+
+## **Doing stuff to every element of two arrays**
+```{r}
+array_test = c(1:10)
+array_test1 = seq(0.1, 1, 0.1)
+
+array_test - array_test1
+
+cbind(array_test, array_test1, array_test - array_test1)
+
+array_test2=vector("list")
+for(i in 1:length(array_test)){
+  array_test2[[i]] = array_test[i] - array_test1
+}
+array_test2
+
+data_frame_test2 = data.frame(matrix(unlist(array_test2), 
+                                     nrow = 10, byrow=T))
+data_frame_test2
+
+#What if array_test and array_test1 aren't the same length?
+
+timer = proc.time()
+array_test3 = outer(array_test, array_test1, `-`)
+proc.time() - timer
+
+timer = proc.time()
+array_test4 = lapply(array_test, "-", array_test1)
+proc.time() - timer
+
+timer = proc.time()
+x = rep(array_test, each=length(array_test))
+array_test5 = split(x-array_test1, x)
+proc.time() - timer
+
+timer = proc.time()
+array_test6 = CJ(array_test, array_test1)[, V:=V1-V2]
+proc.time() - timer
+```
